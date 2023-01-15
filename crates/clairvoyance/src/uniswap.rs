@@ -1,13 +1,23 @@
-use std::{error::Error, sync::Arc};
+use utils::tokens::Token;
+use utils::{chain_tools::convert_q64_96, tokens::get_tokens};
 
-use bindings::{i_uniswap_v3_pool::IUniswapV3Pool, uniswap_v3_factory::UniswapV3Factory};
-use ethers::{abi::Address, prelude::*, providers::Provider, types::H160};
-use eyre::Result;
 use num_bigfloat::BigFloat;
-use utils::{
-    chain_tools::convert_q64_96,
-    tokens::{get_tokens, Token},
-};
+use std::sync::Arc;
+
+use ethers::abi::Address;
+use ethers::prelude::*;
+use ethers::providers::Provider;
+use ethers::types::H160;
+
+use bindings::i_uniswap_v3_pool::IUniswapV3Pool;
+use bindings::uniswap_v3_factory::UniswapV3Factory;
+
+use eyre::Result;
+use std::error::Error;
+
+use tokio_stream::Stream;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 const FACTORY: &str = "0x1F98431c8aD98523631AE4a59f267346ea31F984";
 /// Representation of a pool.
@@ -163,6 +173,21 @@ impl Pool {
     }
 }
 
+struct Swap {
+    // fields here relating to the swap parameters. this will also make all methods
+    // more concise
+}
+
+impl Stream for Interval {
+    type Item = Swap;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
+        -> Poll<Option<()>>
+    {
+        // control flow here for returning swap values.
+    }
+}
+
 pub async fn get_pool(
     token0: &String,
     token1: &String,
@@ -208,9 +233,8 @@ pub fn compute_price(tokens: (Token, Token), sqrt_price_x96: U256, pool_token_0:
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use ethers::{abi::Address, providers::*};
+    use std::sync::Arc;
     use utils::{chain_tools, tokens};
 
     use super::Pool;
