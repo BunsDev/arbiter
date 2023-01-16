@@ -3,11 +3,13 @@ use utils::{chain_tools::convert_q64_96, tokens::get_tokens};
 
 use num_bigfloat::BigFloat;
 use std::sync::Arc;
+use std::future::Future;
 
 use ethers::abi::Address;
 use ethers::prelude::*;
 use ethers::providers::Provider;
 use ethers::types::H160;
+use ethers::types::I256;
 
 use bindings::i_uniswap_v3_pool::IUniswapV3Pool;
 use bindings::uniswap_v3_factory::UniswapV3Factory;
@@ -119,7 +121,7 @@ impl Pool {
             .call()
             .await
             .unwrap();
-        // pool object
+
         Ok(Pool {
             token_0,
             token_1,
@@ -141,50 +143,79 @@ impl Pool {
             "Got Pool: {:#?}. Listening for events...",
             pool_contract.address()
         );
-        let pool_tokens = self.get_tokens();
-        let swap_events = pool_contract.swap_filter();
-        let pool_token_0 = pool_contract.token_0().call().await.unwrap();
-        let mut swap_stream = swap_events.stream().await.unwrap();
-        while let Some(Ok(event)) = swap_stream.next().await {
-            let (tick, liq, sqrtprice) = (event.tick, event.liquidity, event.sqrt_price_x96);
-            self.set_tick(tick);
-            self.set_liquidity(liq);
-            self.set_sqrt_price_x96(sqrtprice);
-            println!("------------NEW SWAP------------");
-            println!("Pool:      {:#?}", pool_contract.address());
-            println!("Sender:    {:#?}", event.sender);
-            println!("Recipient: {:#?}", event.recipient);
-            println!("Amount_0:  {:#?}", event.amount_0); // I256
-            println!("Amount_1:  {:#?}", event.amount_1); // I256
-            println!("Liquidity: {:#?}", event.liquidity); // u128
-            println!("Tick:      {:#?}", event.tick); // i32
-            println!(
-                "Price:     {:#?}",
-                compute_price(pool_tokens.clone(), event.sqrt_price_x96, pool_token_0,).to_string()
-            );
-            // Check tick, price, and liquidity where updated
-            assert_eq!(event.tick, self.get_tick());
-            assert_eq!(event.liquidity, self.get_liquidity());
-            assert_eq!(event.sqrt_price_x96, self.get_sqrt_price_x96());
+
+        while let swap = self.next().await.unwrap() {
+            println!("{swap:#?}");
         }
+        // while let Some(Ok(event)) = swap_stream.next().await {
+        //     let (tick, liq, sqrtprice) = (event.tick, event.liquidity, event.sqrt_price_x96);
+        //     self.set_tick(tick);
+        //     self.set_liquidity(liq);
+        //     self.set_sqrt_price_x96(sqrtprice);
+
+        //     println!("------------NEW SWAP------------");
+        //     println!("Pool:      {:#?}", pool_contract.address());
+        //     println!("Sender:    {:#?}", event.sender);
+        //     println!("Recipient: {:#?}", event.recipient);
+        //     println!("Amount_0:  {:#?}", event.amount_0); // I256
+        //     println!("Amount_1:  {:#?}", event.amount_1); // I256
+        //     println!("Liquidity: {:#?}", event.liquidity); // u128
+        //     println!("Tick:      {:#?}", event.tick); // i32
+        //     println!(
+        //         "Price:     {:#?}",
+        //         compute_price(pool_tokens.clone(), event.sqrt_price_x96, pool_token_0,).to_string()
+        //     );
+
+        //     assert_eq!(event.tick, self.get_tick());
+        //     assert_eq!(event.liquidity, self.get_liquidity());
+        //     assert_eq!(event.sqrt_price_x96, self.get_sqrt_price_x96());
+        // }
     }
     pub fn price_impact() {
         todo!()
     }
 }
 
+#[derive(Debug)]
 struct Swap {
-    // fields here relating to the swap parameters. this will also make all methods
-    // more concise
+    sender: H160,
+    recipient: H160,
+    amount_0: I256,
+    amount_1: I256
 }
 
-impl Stream for Interval {
+impl Stream for Pool {
     type Item = Swap;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>)
-        -> Poll<Option<()>>
+        -> Poll<Option<Self::Item>>
     {
-        // control flow here for returning swap values.
+        let pool_contract = self.get_contract();
+
+        let mut swap_stream;
+        let stream_future = Box::pin(&mut pool_contract.swap_filter().stream()).as_mut();
+        
+        match stream_future.poll(cx) {
+            Poll::Ready(stream) => swap_stream = stream.unwrap(),
+            Poll::Pending => return Poll::Pending,
+        };
+
+        while let Some(Ok(event)) = swap_stream.next() {
+            self.set_tick(event.tick);
+            self.set_liquidity(event.liquidity);
+            self.set_sqrt_price_x96(event.sqrt_price_x96);
+
+            return Poll::Ready(Some(
+                Swap {
+                    sender: H160(*event.sender.as_fixed_bytes()),
+                    recipient: H160(*event.recipient.as_fixed_bytes()),
+                    amount_0: event.amount_0,
+                    amount_1: event.amount_1
+                }
+            ));
+        }
+
+        Poll::Ready(None)
     }
 }
 
