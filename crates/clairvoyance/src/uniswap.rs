@@ -3,8 +3,9 @@ use utils::{chain_tools::convert_q64_96, tokens::get_tokens};
 
 use num_bigfloat::BigFloat;
 use std::sync::Arc;
+use pin_utils::pin_mut;
+use futures::executor::block_on;
 use std::future::Future;
-
 use ethers::abi::Address;
 use ethers::prelude::*;
 use ethers::providers::Provider;
@@ -177,11 +178,11 @@ impl Pool {
 }
 
 #[derive(Debug)]
-struct Swap {
-    sender: H160,
-    recipient: H160,
-    amount_0: I256,
-    amount_1: I256
+pub struct Swap {
+    pub sender: H160,
+    pub recipient: H160,
+    pub amount_0: I256,
+    pub amount_1: I256
 }
 
 impl Stream for Pool {
@@ -191,16 +192,20 @@ impl Stream for Pool {
         -> Poll<Option<Self::Item>>
     {
         let pool_contract = self.get_contract();
-
+        let filter = pool_contract.swap_filter();
         let mut swap_stream;
-        let stream_future = Box::pin(&mut pool_contract.swap_filter().stream()).as_mut();
-        
-        match stream_future.poll(cx) {
-            Poll::Ready(stream) => swap_stream = stream.unwrap(),
-            Poll::Pending => return Poll::Pending,
-        };
+        let swap_fut = filter.stream();
 
-        while let Some(Ok(event)) = swap_stream.next() {
+        pin_mut!(swap_fut);
+        
+        match swap_fut.poll(cx) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(v) => swap_stream = v.unwrap(),
+        }
+
+        println!("here");
+
+        while let Some(Ok(event)) = block_on(swap_stream.next()) {
             self.set_tick(event.tick);
             self.set_liquidity(event.liquidity);
             self.set_sqrt_price_x96(event.sqrt_price_x96);
