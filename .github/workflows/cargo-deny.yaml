@@ -2,7 +2,6 @@ on: [push]
 
 name: cargo-deny
 
-
 jobs:
   cargo-deny:
     runs-on: ubuntu-latest
