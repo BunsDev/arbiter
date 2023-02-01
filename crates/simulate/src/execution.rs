@@ -1,5 +1,6 @@
 use revm::{
     db::{CacheDB, EmptyDB},
+    primitives::{ExecutionResult, Output, TransactTo, B160, U256 as rU256},
     EVM,
 };
 use bytes::Bytes;
@@ -14,7 +15,12 @@ impl ExecutionManager {
     pub fn new() -> Self {
     }
 
-    pub fn execute() -> {
+    pub fn execute(
+        transact_to: 
+        value: rU265
+        caller: 
+        calldata: Bytes,
+    ) -> {
 
     }
 }
