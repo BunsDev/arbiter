@@ -13,14 +13,30 @@ pub struct ExecutionManager {
 impl ExecutionManager {
     /// Public constructor function to instantiate an `ExecutionManager`.
     pub fn new() -> Self {
+        let mut evm = EVM::new();
+        let mut db = CacheDB::new(EmptyDB {});
+
+        db.insert_account_info(uniswap, AccountInfo {
+            balance: U256::zero(),
+            code: Bytes..
+            nonce: 0
+            storage
+        })
+        evm.database(db);
+
+        Self { evm }
     }
 
-    pub fn execute(
-        transact_to: 
-        value: rU265
-        caller: 
-        calldata: Bytes,
-    ) -> {
 
-    }
+
+    
+
+    // pub fn execute(
+    //     transact_to: 
+    //     value: rU265
+    //     caller: 
+    //     calldata: Bytes,
+    // ) -> {
+
+    // }
 }
