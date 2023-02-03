@@ -17,7 +17,7 @@ mod config;
 #[derive(Parser)]
 #[command(name = "Arbiter")]
 #[command(version = "1.0")]
-#[command(about = "Data monitoring and execution tool for decentralized exchanges.", long_about = None)]
+#[command(about = "Rich multi-agent EVM simualtions with REVM", long_about = None)]
 #[command(author)]
 struct Args {
     /// Pass a subcommand in.
