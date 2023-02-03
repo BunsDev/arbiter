@@ -131,7 +131,8 @@ async fn main() -> Result<()> {
             // insert a default user
             let user_addr = B160::from_str("0x0000000000000000000000000000000000000001")?;
             testbed.create_user(user_addr);
-
+            
+            let erc20_deployer = bindings::erc20::Erc20::deploy(client, ()).unwrap();
             // This is the only part of main that uses a provider/client. The client doesn't actually do anything, but it is a necessary inner for ContractDeployer
             let contract_deployer = bindings::hello_world::HelloWorld::deploy(client, ()).unwrap();
             let initialization_bytes = contract_deployer.deployer.tx.data().unwrap();
