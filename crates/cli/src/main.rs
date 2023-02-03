@@ -5,7 +5,7 @@ use clairvoyance::uniswap::{get_pool, Pool};
 use clap::{Parser, Subcommand};
 use ethers::{
     prelude::BaseContract,
-    providers::{Http, Provider},
+    providers::{Http, Provider}, abi::{Tokenize, Constructor},
 };
 use eyre::Result;
 use revm::primitives::{ruint::Uint, ExecutionResult, Output, TransactTo, B160};
@@ -131,11 +131,31 @@ async fn main() -> Result<()> {
             // insert a default user
             let user_addr = B160::from_str("0x0000000000000000000000000000000000000001")?;
             testbed.create_user(user_addr);
+            
+            let code = bindings::erc20::ERC20_BYTECODE.clone().to_vec();
+            let abi = bindings::erc20::ERC20_ABI.clone();
 
-            let erc20_deployer = bindings::erc20::ERC20::deploy(client, "ForgeUSD", "FUSD").unwrap();
+
+            //mismatched types
+            // expected struct `Vec<u8>`
+            // found struct `ethers::types::Bytes
+            let encoded = Bytes::from(hex::decode(hex::encode("arbiter"))?);
+            let tokenized = Tokenize::into_tokens(encoded);
+
+            // let bytes = Bytes::from(hex::decode(hex::encode(code))?);
+            // let bytes = ethers::types::Bytes::from(code).to_vec();
+            let constructor = abi.constructor().unwrap().encode_input(code, &tokenized).unwrap(); 
+
+            println!("{:#?}", constructor);
+            // let initialization_bytes = Bytes::from((constructor));
+            // let args = abi.constructor().unwrap().encode_input(code, &tokenized);
+            // let bytes = constructor.
+            // let erc20_deployer = bindings::erc20::ERC20::deploy(client, (args)).unwrap();
+            // let initialization_bytes = constructor.deployer.tx.data().unwrap();
+
             // This is the only part of main that uses a provider/client. The client doesn't actually do anything, but it is a necessary inner for ContractDeployer
-            // let contract_deployer = bindings::hello_world::HelloWorld::deploy(client, ()).unwrap();
-            let initialization_bytes = erc20_deployer.deployer.tx.data().unwrap();
+            let contract_deployer = bindings::hello_world::HelloWorld::deploy(client, ()).unwrap();
+            let initialization_bytes = contract_deployer.deployer.tx.data().unwrap();
             let initialization_bytes = Bytes::from(hex::decode(hex::encode(initialization_bytes))?);
 
             // execute initialization code from user
