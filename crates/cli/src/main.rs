@@ -1,11 +1,19 @@
 use std::{env, str::FromStr, sync::Arc};
-
+use simulate::abi;
 use bytes::Bytes;
 use clairvoyance::uniswap::{get_pool, Pool};
 use clap::{Parser, Subcommand};
 use ethers::{
     prelude::BaseContract,
     providers::{Http, Provider}, abi::{Tokenize, Constructor},
+};
+use ethers_core::{
+    abi::{
+        token::{LenientTokenizer, StrictTokenizer, Tokenizer},
+        Event, Function, HumanReadableParser, ParamType, RawLog, Token,
+    },
+    types::{Address, Chain, I256, U256},
+    utils::{hex, to_checksum},
 };
 use eyre::Result;
 use revm::primitives::{ruint::Uint, ExecutionResult, Output, TransactTo, B160};
@@ -134,27 +142,33 @@ async fn main() -> Result<()> {
             
             let code = bindings::erc20::ERC20_BYTECODE.clone().to_vec();
             let abi = bindings::erc20::ERC20_ABI.clone();
+            // let constructor_fxn = abi.functions_by_name("constructor")?.to_owned()[0].clone();
+            let functions = abi.functions.clone();
 
+            println!("{:#?}", functions);
+            let constructor_fxn = abi.functions_by_name("constructor(string memory name_, string memory symbol_)")?.to_owned()[0].clone();
 
+            // let thing_idk = abi,
             //mismatched types
             // expected struct `Vec<u8>`
             // found struct `ethers::types::Bytes
-            let encoded = Bytes::from(hex::decode(hex::encode("arbiter"))?);
-            let tokenized = Tokenize::into_tokens(encoded);
+            let encoded_1 = Bytes::from(hex::decode(hex::encode("arbToken"))?);
+            let encoded_2 = Bytes::from(hex::decode(hex::encode("ARBT"))?);
 
-            // let bytes = Bytes::from(hex::decode(hex::encode(code))?);
-            // let bytes = ethers::types::Bytes::from(code).to_vec();
-            let constructor = abi.constructor().unwrap().encode_input(code, &tokenized).unwrap(); 
+            let params = Tokenize::into_tokens((encoded_1,encoded_2));
+            let constructor = abi.constructor.unwrap().encode_input(code, &params); 
 
             println!("{:#?}", constructor);
-            // let initialization_bytes = Bytes::from((constructor));
-            // let args = abi.constructor().unwrap().encode_input(code, &tokenized);
-            // let bytes = constructor.
-            // let erc20_deployer = bindings::erc20::ERC20::deploy(client, (args)).unwrap();
-            // let initialization_bytes = constructor.deployer.tx.data().unwrap();
 
+            // let constructor = an
+            let thing = vec!["ForgeUSD", "FUSD"];
+            // let mut arg_vec = vec!["ForgeUSD"];
+            // arg_vec.push("FUSD");
+            let abi = abi::encode_args(&constructor_fxn ,&thing);
             // This is the only part of main that uses a provider/client. The client doesn't actually do anything, but it is a necessary inner for ContractDeployer
             let contract_deployer = bindings::hello_world::HelloWorld::deploy(client, ()).unwrap();
+
+            
             let initialization_bytes = contract_deployer.deployer.tx.data().unwrap();
             let initialization_bytes = Bytes::from(hex::decode(hex::encode(initialization_bytes))?);
 
